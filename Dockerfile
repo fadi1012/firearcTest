@@ -12,14 +12,14 @@ WORKDIR /app
 COPY requirements.txt .
 
 # Install any needed packages specified in requirements.txt
+RUN pip install --upgrade pip
 RUN pip install -r requirements.txt
 
 # Copy the rest of the application code into the container
 COPY . .
 
 # Create the database tables and add a dummy article
-RUN python -c "from app.data_access import Base, engine; Base.metadata.create_all(bind=engine)"
-RUN python utilities/init_db.py
+RUN python -c "from app.models import init_db; init_db()"
 
 # Expose the port that the FastAPI app will run on
 EXPOSE 8000

@@ -1,31 +1,102 @@
-from sqlalchemy.orm import Session
+import aiosqlite
+from fastapi import Depends, HTTPException
+
+from app.main import get_db
 from app.models import Article
 
 
 class DataAccessLayer:
     @classmethod
-    def get_all_articles(cls, db: Session) -> list[Article]:
-        return db.query(Article).all()
+    def get_all_articles(cls, db: aiosqlite.Connection = Depends(get_db)) -> list[Article]:
+        cursor = await db.cursor()
+
+        # Execute the SQL query to get all articles
+        await cursor.execute("SELECT * FROM articles")
+        articles_data = await cursor.fetchall()
+
+        # Convert the database results to Article objects using a list comprehension
+        articles = [
+            Article(id=article_data[0], title=article_data[1], description=article_data[2], body=article_data[3])
+            for article_data in articles_data
+        ]
+
+        # Close the cursor
+        await cursor.close()
+
+        return articles
 
     @classmethod
-    def get_article_by_id(cls, db: Session, article_id: int) -> Article:
-        return db.query(Article).filter(Article.id == article_id).first()
+    def get_article_by_id(cls, article_id: int, db: aiosqlite.Connection = Depends(get_db)) -> Article:
+        cursor = await db.cursor()
 
-    @classmethod
-    def update_article_by_id(cls, db: Session, article_id: int, updated_article: Article) -> Article:
-        article = db.query(Article).filter(Article.id == article_id).first()
-        if article:
-            for attr, value in updated_article.dict().items():
-                setattr(article, attr, value)
-            db.commit()
-            db.refresh(article)
+        # Execute the SQL query to get an article by ID
+        await cursor.execute("SELECT * FROM articles WHERE id = ?", (article_id,))
+        article_data = await cursor.fetchone()
+
+        if not article_data:
+            raise HTTPException(status_code=404, detail="Article not found")
+
+        article = Article(id=article_data[0], title=article_data[1], description=article_data[2], body=article_data[3])
+
+        # Close the cursor
+        await cursor.close()
+
         return article
 
     @classmethod
-    def delete_article_by_id(cls, db: Session, article_id: int) -> bool:
-        article = db.query(Article).filter(Article.id == article_id).first()
-        if article:
-            db.delete(article)
-            db.commit()
-            return True
-        return False
+    def update_article_by_id(cls, article_id: int, updated_article: Article,
+                             db: aiosqlite.Connection = Depends(get_db)) -> Article:
+        cursor = await db.cursor()
+
+        # Execute the SQL query to update an article by ID
+        await cursor.execute(
+            "UPDATE articles SET title = ?, description = ?, body = ? WHERE id = ?",
+            (updated_article.title, updated_article.description, updated_article.body, article_id)
+        )
+
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Article not found")
+
+        # Commit the transaction
+        await db.commit()
+
+        # Close the cursor
+        await cursor.close()
+
+        return updated_article
+
+    @classmethod
+    def delete_article_by_id(cls, article_id: int, db: aiosqlite.Connection = Depends(get_db)) -> bool:
+        cursor = await db.cursor()
+
+        # Execute the SQL query to delete an article by ID
+        await cursor.execute("DELETE FROM articles WHERE id = ?", (article_id,))
+
+        if cursor.rowcount == 0:
+            raise HTTPException(status_code=404, detail="Article not found")
+
+        # Commit the transaction
+        await db.commit()
+
+        # Close the cursor
+        await cursor.close()
+
+        return True
+
+    @classmethod
+    def create_article(cls, article: Article, db: aiosqlite.Connection = Depends(get_db)):
+        cursor = await db.cursor()
+
+        # Execute the SQL query to insert the article
+        await cursor.execute(
+            "INSERT INTO articles (title, description, body) VALUES (?, ?, ?)",
+            (article.title, article.description, article.body)
+        )
+
+        # Commit the transaction
+        await db.commit()
+
+        # Close the cursor
+        await cursor.close()
+
+        return article

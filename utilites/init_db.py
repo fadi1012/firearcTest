@@ -1,24 +1,32 @@
-from sqlalchemy import create_engine
-from app.data_access import SessionLocal
-from app.models import Article
-from app.main import DATABASE_URL
+import aiosqlite
 
 
-def init_db():
-    engine = create_engine(DATABASE_URL)
-    SessionLocal.configure(bind=engine)
+async def init_db():
+    db = await aiosqlite.connect("./test.db")
+    cursor = await db.cursor()
 
     # Create the database tables
-    from app.data_access import Base
-    Base.metadata.create_all(bind=engine)
+    await cursor.execute('''
+        CREATE TABLE IF NOT EXISTS articles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            description TEXT,
+            body TEXT
+        )
+    ''')
 
     # Add a dummy article to the database
-    db = SessionLocal()
-    dummy_article = Article(title="Dummy Title", description="Dummy Desc", body="Dummy Body")
-    db.add(dummy_article)
-    db.commit()
-    db.close()
+    await cursor.execute('''
+        INSERT INTO articles (title, description, body)
+        VALUES (?, ?, ?)
+    ''', ("Dummy Title", "Dummy Desc", "Dummy Body"))
+
+    await db.commit()
+    await db.close()
 
 
 if __name__ == "__main__":
-    init_db()
+    import asyncio
+
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(init_db())

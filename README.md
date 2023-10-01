@@ -18,11 +18,13 @@ This is a FastAPI-based web application for managing articles. It provides a RES
 
 ## API Documentation
 - `/articles` - POST: Create a new article.
-- `/articles/` - GET: Get a list of all articles.
+- `/articles/` - GET: Get a list of all articles. (Cached with LRU mechanism for improved performance)
 - `/articles/{article_id}` - GET: Get a specific article by ID.
 - `/articles/{article_id}` - PUT: Update an article by ID.
 - `/articles/{article_id}` - DELETE: Delete an article by ID.
 
+## Caching
+The `/articles/` endpoint is cached using an LRU (Least Recently Used) cache mechanism for improved performance. The list of articles is cached and retrieved from the cache for subsequent requests, reducing the need for repeated database queries.
 
 ## Author
 Fadi Zaboura
