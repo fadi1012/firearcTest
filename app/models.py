@@ -1,11 +1,8 @@
-from sqlalchemy import Column, Integer, String
-from app.database import Base
+from pydantic import BaseModel
 
 
-class Article(Base):
-    __tablename__ = "articles"
-
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String, index=True)
-    description = Column(String)
-    body = Column(String)
+class Article(BaseModel):
+    id: int
+    title: str
+    description: str
+    body: str
